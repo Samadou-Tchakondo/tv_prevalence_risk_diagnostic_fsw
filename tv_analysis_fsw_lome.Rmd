@@ -1,0 +1,1096 @@
+---
+title: "Prevalence, associated factors, and diagnostic agreement between microscopy and molecular detection of Trichomonas vaginalis among female sex workers in Lomé, Togo"
+author: "TCHAKONDO Samadou"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: TRUE
+    toc_depth: 3
+    toc_float: true
+    number_sections: true
+    theme: cosmo
+    highlight: tango
+  word_document: default
+  pdf_document:
+    latex_engine: xelatex
+---
+
+# **Introduction**
+
+*Trichomonas vaginalis* is one of the most common non-viral sexually transmitted infections worldwide and is associated with adverse reproductive health outcomes, including increased susceptibility to HIV infection and pelvic inflammatory disease.
+
+A total of 357 female sex workers were included in the analysis. Female sex workers (FSWs) represent a key population with increased vulnerability to sexually transmitted infections due to structural, behavioral, and biological factors. However, data on the epidemiology of *Trichomonas vaginalis* infection among FSWs in West Africa remain limited.
+
+This study aimed to:
+
+- Estimate the prevalence of *Trichomonas vaginalis* infection among FSWs in Lomé, Togo
+- Identify sociodemographic, behavioral, and biological factors associated with infection
+- Evaluate the diagnostic performance of wet mount microscopy compared with PCR
+
+
+
+# **Data Source and Study Population**
+
+The dataset used in this analysis was collected as part of a cross-sectional study conducted among female sex workers in Lomé, Togo.
+
+Participants underwent:
+
+- Structured interviews collecting sociodemographic and behavioral information
+- Clinical examination
+- Laboratory testing for sexually transmitted infections
+
+Laboratory testing included:
+
+- Wet mount microscopy
+- PCR detection of *Trichomonas vaginalis*
+- Testing for other sexually transmitted infections including HIV, *Chlamydia trachomatis*, *Neisseria gonorrhoeae*, and *Gardnerella vaginalis*.
+
+
+
+# **Load Required Libraries**
+```{r load-packages, message=FALSE, warning=FALSE}
+
+library(haven)       # Import SPSS datasets (.sav) into R
+
+library(dplyr)       # Data manipulation and cleaning (filter, mutate, select, summarise)
+
+library(tidyverse)   # Collection of packages for data wrangling, visualization, and analysis (ggplot2, tidyr, etc.)
+
+library(gtsummary)   # Creation of publication-ready descriptive and regression tables
+
+library(epiR)        # Epidemiological analysis tools, including diagnostic performance statistics (epi.tests)
+
+library(psych)      # Statistical procedures including agreement statistics (e.g., internal consistency (alpha), Cohen's Kappa)
+
+library(broom)      # Convert statistical model outputs into tidy data frames
+
+library(knitr)      # Dynamic report generation and table rendering in RMarkdown
+
+library(kableExtra) # Advanced styling for tables produced with knitr::kable
+
+library(irr)        # Inter-rater reliability statistics (e.g., Cohen's Kappa)
+
+library(car)        # Companion to Applied Regression: regression diagnostics and VIF for multicollinearity
+
+library(MASS)       
+# Statistical functions including stepwise model selection using AIC (stepAIC)
+
+library(ResourceSelection) # Goodness-of-fit tests for logistic regression (Hosmer-Lemeshow test)
+
+```
+
+
+
+# **Data Preparation**
+
+## **Data Import and Initial Inspection**
+```{r}
+# Import dataset 
+data <- read_sav("data/IST_Data_Global.sav") %>%
+  mutate(across(where(is.character),
+                ~replace(.x, .x %in% c("", "."), NA)))
+
+
+# Preview the first rows of the dataset
+head(data)
+
+```
+
+
+
+## **Selection of Variables for Analysis**
+
+The variables required for the statistical analyses were selected from the original dataset based on their relevance to the study objectives. These included diagnostic variables for *Trichomonas vaginalis*, sociodemographic characteristics, sexual behavior indicators, hygiene practices, clinical symptoms, and other sexually transmitted infections.
+```{r select-variables}
+
+selected_data <- data %>%
+  dplyr::select(
+
+    # Identification
+    id,
+
+    # Diagnostic variables
+    TV_Global,
+    TV_EF,
+    TV,
+    TV_PCR_status,
+
+    # Sociodemographic variables
+    age,
+    age_group,
+    niv_educ,
+    parten,
+    clien_reg,
+    habita,
+    otr_activ_cat,
+    somme_sem,
+
+    # Sexual practice of FSW
+    rapsex1,
+    rapsex1_group,
+    sexpayan1,
+    sexpayan1_group,
+    anciennete_profession,
+    anciennete_profession_cat,
+    activ_prin,
+    client_sem,
+    client_sem_cat,
+    typ_rap,
+
+    # Intimate toilet practices
+    toil_int,
+    freq_toil,
+    type_toil_rec,
+
+    # Condom use
+    preso_dern_rap,
+    freq_pres,
+
+    # Clinical symptoms
+    symp_ist_med,
+    quel_sympt_cat_med,
+
+    # Physical signs
+    aspect_col_cat,
+    leucorre,
+    ph,
+    ph_cat,
+
+    # Sexually transmitted infections
+    statut_VIH,
+    GV,
+    CT,
+    NG
+  )
+
+```
+
+
+
+## **Data Cleaning and Recoding of Variables**
+
+Categorical variables were recoded as factors with meaningful labels to facilitate statistical analysis and interpretation of results. The cleaned dataset used for the analyses was defined as `TV_Global_data`.
+```{r data_cleaning_recode}
+
+TV_Global_data <- selected_data %>%
+  mutate(
+
+    TV_Global = factor(TV_Global,
+                       levels = c(0,1),
+                       labels = c("Négatif","Positif")),
+
+    TV_EF = factor(TV_EF,
+                   levels = c(0,1),
+                   labels = c("Négatif","Positif")),
+
+    TV = factor(TV,
+                levels = c(0,1),
+                labels = c("Négatif","Positif")),
+
+    TV_PCR_status = factor(TV_PCR_status,
+                           levels = c(1,2,3),
+                           labels = c("Test valide",
+                                      "Erreur technique",
+                                      "Test non effectué")),
+
+    age_group = factor(age_group,
+                       levels = c(1,2,3,4),
+                       labels = c("< 20","20-29","30-39","≥ 40")),
+
+    niv_educ = factor(niv_educ,
+                      levels = c(1,2,3,4),
+                      labels = c("Non instruites",
+                                 "Primaire",
+                                 "Secondaire",
+                                 "Supérieur")),
+
+        parten = factor(parten,
+                      levels = c(0,1),
+                      labels = c("Non","Oui")),
+                                
+                                 
+     clien_reg = factor(clien_reg,
+                       levels = c(0,1),
+                       labels = c("Non","Oui")),
+    
+    habita = factor(habita,
+                    levels = c(1,2,3),
+                    labels = c("Collectif",
+                               "Individuel",
+                               "Maison close")),
+
+    rapsex1_group = factor(rapsex1_group,
+                           levels = c(1,2,3),
+                           labels = c("<15",
+                                      "15-24",
+                                      "25-35")),
+
+    sexpayan1_group = factor(sexpayan1_group,
+                             levels = c(1,2,3,4),
+                             labels = c("<15",
+                                        "15-24",
+                                        "25-34",
+                                        "≥ 35")),
+
+    anciennete_profession_cat = factor(anciennete_profession_cat,
+                                       levels = c(1,2,3),
+                                       labels = c("≤ 1 an",
+                                                  "2-5 ans",
+                                                  "> 5 ans")),
+
+    activ_prin = factor(activ_prin,
+                        levels = c(0,1),
+                        labels = c("Non","Oui")),
+
+    otr_activ_cat = factor(otr_activ_cat,
+                           levels = c(1,2,3),
+                           labels = c("PS uniquement",
+                                      "PS + Commerce/coiffure/couture",
+                                      "PS + Autres*")),
+
+    client_sem_cat = factor(client_sem_cat,
+                            levels = c(1,2,3),
+                            labels = c("< 5",
+                                       "5-9",
+                                       "≥ 10")),
+
+    typ_rap = factor(typ_rap,
+                     levels = c(1,2,3,4),
+                     labels = c("Vaginal",
+                                "Vaginal + Anal",
+                                "Oral + Vaginal",
+                                "Oral + Vaginal + Anal")),
+
+    somme_sem = factor(somme_sem,
+                       levels = c(1,2,3,4,5),
+                       labels = c("< 5000 FCFA",
+                                  "5005 - 25 000 FCFA",
+                                  "25005 - 50 000 FCFA",
+                                  "50005 - 100 000 FCFA",
+                                  "≥ 100000 FCFA")),
+
+    toil_int = factor(toil_int,
+                      levels = c(0,1),
+                      labels = c("Non","Oui")),
+
+    freq_toil = factor(freq_toil,
+                       levels = c(1,2,3,4),
+                       labels = c("Tous les jours",
+                                  "Après chaque rapport",
+                                  "Irrégulier",
+                                  "Au moins une fois par semaine")),
+
+    type_toil_rec = factor(type_toil_rec,
+                           levels = c(1,2,3,4,5),
+                           labels = c("Eau simple",
+                                      "Savon",
+                                      "Plante",
+                                      "Produits",
+                                      "Autres")),
+    
+    preso_dern_rap = factor(preso_dern_rap,
+                       levels = c(0,1),
+                       labels = c("Non","Oui")),
+
+    freq_pres = factor(freq_pres,
+                       levels = c(1,2,3,4),
+                       labels = c("Rarement",
+                                  "Quelquefois",
+                                  "Souvent",
+                                  "Toujours")),
+    
+    
+        symp_ist_med = factor(symp_ist_med,
+                       levels = c(0,1),
+                       labels = c("Non","Oui")),
+
+    quel_sympt_cat_med = factor(quel_sympt_cat_med,
+                                levels = c(1,2,3,4,5),
+                                labels = c("Leucorrhées",
+                                           "Ulcération génitale",
+                                           "Prurit génital",
+                                           "Dysurie",
+                                           "Mixte*")),
+
+      
+    leucorre = factor(leucorre,
+                            levels = c(1,2,3,4),
+                            labels = c("Crémeux",
+                                       "Purulent",
+                                       "Hématique",
+                                       "Mousseux")),
+    
+    aspect_col_cat = factor(aspect_col_cat,
+                            levels = c(1,2,3,4,5),
+                            labels = c("Normal",
+                                       "Glaireux",
+                                       "Inflammatoire",
+                                       "Saignant",
+                                       "Ulcéreux")),
+
+    ph_cat = factor(ph_cat,
+                    levels = c(1,2,3),
+                    labels = c("Acide",
+                               "Neutre",
+                               "Basique")),
+
+     statut_VIH = factor(statut_VIH,
+                levels = c(0,1),
+                labels = c("Négatif","Positif")),
+    
+    GV = factor(GV,
+                levels = c(0,1),
+                labels = c("Négatif","Positif")),
+
+    CT = factor(CT,
+                levels = c(0,1),
+                labels = c("Négatif","Positif")),
+
+    NG = factor(NG,
+                levels = c(0,1),
+                labels = c("Négatif","Positif"))
+
+  )
+```
+
+
+
+# **Characteristics of the Study Participants**
+
+## **Descriptive statistics for categorical variables**
+```{r descriptive_categorical_variables}
+
+categorical_vars <- c(
+  "age_group","niv_educ", "parten","clien_reg","habita","otr_activ_cat","somme_sem",
+  "rapsex1_group","sexpayan1_group","anciennete_profession_cat",
+  "activ_prin","client_sem_cat","typ_rap",
+  "toil_int","freq_toil","type_toil_rec",
+  "preso_dern_rap","freq_pres",
+  "symp_ist_med",
+  "quel_sympt_cat_med",
+  "leucorre",
+  "aspect_col_cat","ph_cat",
+  "statut_VIH","GV","CT","NG"
+)
+
+categorical_results <- lapply(categorical_vars, function(v){
+  
+  tab <- table(TV_Global_data[[v]], useNA = "no")
+  
+  n_total <- sum(tab)
+  
+  res <- lapply(names(tab), function(cat){
+    
+    n <- tab[cat]
+    
+    ci <- prop.test(n, n_total)$conf.int
+    
+    data.frame(
+      Variable = v,
+      Category = cat,
+      Count = n,
+      Percent = round((n/n_total)*100,1),
+      CI_lower = round(ci[1]*100,1),
+      CI_upper = round(ci[2]*100,1)
+    )
+    
+  }) %>% bind_rows()
+  
+  return(res)
+  
+}) %>% bind_rows()
+
+
+
+categorical_results %>%
+  kable(
+    caption = "Distribution of categorical variables among female sex workers",
+    col.names = c("Variable","Category","Count","Percent (%)","CI Lower","CI Upper"),
+    align = "lccccc"
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    bootstrap_options = c("striped","hover","condensed")
+  )
+
+```
+A total of 357 female sex workers were included in the analysis. Most participants were aged between 20 and 39 years (70.9%). The majority had completed secondary education (42.0%) or primary education (35.0%). More than half of the participants reported having a regular sexual partner (53.1%), and 67.1% reported having regular clients. Most participants lived in collective housing (63.1%).  Condom use during the last sexual intercourse was reported by 89.0% of participants, and 54.2% reported always using condoms. Intimate hygiene practices were common, with 86.2% reporting performing intimate cleansing.
+
+
+
+
+## **Distribution of Sexual Practices Among Participants**
+```{r figure_sexual_practices,fig.cap="Figure 1. Distribution of sexual practices reported among participants",fig.width=7,fig.height=5}
+
+fig1 <- TV_Global_data %>%
+  filter(!is.na(typ_rap)) %>%
+  count(typ_rap) %>%
+  mutate(prop = 100 * n / sum(n)) %>%
+  
+  ggplot(aes(x = prop,
+             y = fct_reorder(typ_rap, prop))) +
+  
+  geom_col(fill = "#1f9ac6", width = 0.65) +
+  
+  geom_text(aes(label = round(prop, 1)),
+            hjust = -0.2,
+            size = 4) +
+  
+  scale_x_continuous(
+    limits = c(0, 70),
+    expand = c(0, 0)
+  ) +
+  
+  labs(
+    x = "Proportion (%)",
+    y = NULL
+  ) +
+  
+  theme_classic(base_size = 13)
+
+fig1
+```
+Vaginal intercourse was the most commonly reported sexual practice (63.8%). Combined sexual practices including vaginal and anal intercourse were reported by 18.0% of participants.
+
+
+
+## **Distribution of Reported STI Symptoms**
+```{r figure_sti_symptoms,fig.cap= "Figure 2. Distribution of sexually transmitted infection (STI) symptoms reported among symptomatic participants (n = 119)", fig.width=7,fig.height=5}
+
+fig2 <- TV_Global_data %>%
+  filter(symp_ist_med == "Oui",
+         !is.na(quel_sympt_cat_med)) %>%
+  
+  count(quel_sympt_cat_med) %>%
+  
+  mutate(prop = 100 * n / sum(n)) %>%
+  
+  ggplot(aes(x = prop,
+             y = fct_reorder(quel_sympt_cat_med, prop))) +
+  
+  geom_col(fill = "skyblue", width = 0.65) +
+  
+  geom_text(aes(label = round(prop,1)),
+            hjust = -0.2,
+            size = 4) +
+  
+  scale_x_continuous(
+    limits = c(0, 60),
+    expand = c(0,0)
+  ) +
+  
+  labs(
+    x = "Proportion (%)",
+    y = NULL
+  ) +
+  
+  theme_classic(base_size = 13)
+
+fig2
+
+```
+Among the 119 participants reporting STI symptoms, leucorrhea was the most frequently reported symptom (47.1%), followed by mixed symptoms (29.4%) and genital ulceration (17.6%). 
+
+
+
+## **Prevalence of Major Sexually Transmitted Infections**
+```{r figure_sti_prevalence, fig.cap= "Figure 3. Prevalence of major sexually transmitted infections among study participants",fig.width=7,fig.height=5}
+
+plot_ist <- TV_Global_data %>%
+  summarise(
+    VIH = mean(statut_VIH == "Positif", na.rm = TRUE)*100,
+    `Gardnerella vaginalis` = mean(GV == "Positif", na.rm = TRUE)*100,
+    `Chlamydia trachomatis` = mean(CT == "Positif", na.rm = TRUE)*100,
+    `Neisseria gonorrhoeae` = mean(NG == "Positif", na.rm = TRUE)*100
+  ) %>%
+  tidyr::pivot_longer(cols = everything(),
+                      names_to = "infection",
+                      values_to = "prop")
+
+fig3 <- ggplot(plot_ist,
+       aes(x = prop,
+           y = fct_reorder(infection, prop))) +
+
+  geom_col(fill = "#2c8fb3", width = 0.65) +
+
+  geom_text(aes(label = round(prop,1)),
+            hjust = -0.2,
+            size = 5) +
+
+  scale_x_continuous(
+    limits = c(0,45),
+    expand = c(0,0)
+  ) +
+
+  labs(
+    x = "Proportion (%)",
+    y = NULL
+  ) +
+
+  theme_classic(base_size = 16)
+
+fig3
+
+ggsave(
+  filename = "output/Figure3_STI_prevalence.png",
+  plot = fig3,
+  width = 8,
+  height = 5,
+  dpi = 600
+)
+```
+ HIV infection was observed in 15.8% of participants. Gardnerella vaginalis infection was detected in 35.3% of participants, while Chlamydia trachomatis and Neisseria gonorrhoeae infections were identified in 8.5% and 8.7% of participants, respectively.
+
+
+
+
+## **Descriptive statistics for Continuous Variables**
+```{r descriptive_continuous_variables}
+
+continuous_vars <- c(
+  "age",
+  "rapsex1",
+  "sexpayan1",
+  "anciennete_profession",
+  "client_sem",
+  "ph"
+)
+
+continuous_table <- data.frame(
+  Variable = continuous_vars,
+  Min = sapply(TV_Global_data[continuous_vars], function(x) min(x, na.rm = TRUE)),
+  Q1 = sapply(TV_Global_data[continuous_vars], function(x) quantile(x, 0.25, na.rm = TRUE)),
+  Median = sapply(TV_Global_data[continuous_vars], function(x) median(x, na.rm = TRUE)),
+  Mean = sapply(TV_Global_data[continuous_vars], function(x) mean(x, na.rm = TRUE)),
+  SD = sapply(TV_Global_data[continuous_vars], function(x) sd(x, na.rm = TRUE)),
+  Q3 = sapply(TV_Global_data[continuous_vars], function(x) quantile(x, 0.75, na.rm = TRUE)),
+  Max = sapply(TV_Global_data[continuous_vars], function(x) max(x, na.rm = TRUE))
+)
+
+continuous_table %>%
+  kable(
+    caption = "Distribution of Continuous Variables",
+    align = "lccccccc",
+    digits = 2
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    bootstrap_options = c("striped","hover","condensed")
+  )
+```
+The median age of participants was 32 years (IQR: 26-40). The median age at first sexual intercourse was 18 years, while the median age at first paid sexual intercourse was 23 years. The median duration of sex work was 5.5 years. Participants reported a median of four clients per week. The median vaginal pH was 5.0.
+
+
+
+
+# **Distribution of Trichomonas vaginalis Infection and Bivariate Analysis of Associated Factors**
+
+
+## **Overall Prevalence of Trichomonas vaginalis**
+
+Description of overall prevalence of infection among participants.
+```{r tv_prevalence_estimation}
+# Remove missing values
+tv_data <- TV_Global_data %>%
+  filter(!is.na(TV_Global))
+
+# Counts
+n_pos <- sum(tv_data$TV_Global == "Positif")
+n_total <- nrow(tv_data)
+
+# CI
+ci <- prop.test(n_pos, n_total)$conf.int
+
+prevalence_table <- data.frame(
+  Count = n_pos,
+  Total = n_total,
+  Prevalence = round((n_pos/n_total)*100,1),
+  CI_lower = round(ci[1]*100,1),
+  CI_upper = round(ci[2]*100,1)
+)
+
+prevalence_table %>%
+  kable(
+    caption = "Overall prevalence of Trichomonas vaginalis",
+    col.names = c("Positive cases","Total","Prevalence (%)","95% CI lower","95% CI upper"),
+    align = "ccccc"
+  ) %>%
+  kable_styling(full_width = FALSE)
+
+
+```
+The overall prevalence of *Trichomonas vaginalis* infection among female sex workers was 14.0% (95% CI: 10.7-18.1).
+
+
+
+
+## **Distribution Prevalence Across Participant Characteristics**
+
+Prevalence estimates across sociodemographic, behavioral and clinical variables.
+```{r tv_prevalence_by_characteristics}
+analysis_vars <- c(
+  "age_group","niv_educ","parten","clien_reg",
+  "habita","otr_activ_cat","somme_sem","rapsex1_group",
+  "sexpayan1_group","anciennete_profession_cat",
+  "activ_prin","client_sem_cat","typ_rap",
+  "toil_int","freq_toil","type_toil_rec",
+  "preso_dern_rap","freq_pres","clien_reg",
+  "symp_ist_med",
+  "quel_sympt_cat_med",
+  "leucorre",
+  "aspect_col_cat","ph_cat",
+  "statut_VIH","GV","CT","NG"
+)
+
+
+prevalence_by_var <- lapply(analysis_vars, function(v){
+
+  df <- TV_Global_data %>%
+    filter(!is.na(.data[[v]]), !is.na(TV_Global))
+
+  tab <- table(df[[v]], df$TV_Global)
+
+  res <- lapply(rownames(tab), function(cat){
+
+    n_total <- sum(tab[cat,])
+    n_pos <- tab[cat,"Positif"]
+    
+    ci <- binom.test(n_pos, n_total)$conf.int
+
+    data.frame(
+      Variable = v,
+      Category = cat,
+      Count_Positive = n_pos,
+      Total = n_total,
+      Prevalence = round((n_pos/n_total)*100,1),
+      CI_lower = round(ci[1]*100,1),
+      CI_upper = round(ci[2]*100,1)
+    )
+
+  }) %>% bind_rows()
+
+  return(res)
+
+}) %>% bind_rows()
+
+
+prevalence_by_var %>%
+  kable(
+    caption = "Distribution of Trichomonas vaginalis prevalence across participant characteristics",
+    col.names = c("Variable","Category","Positive","Total","Prevalence (%)","95% CI lower","95% CI upper"),
+    align = "lcccccc"
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    bootstrap_options = c("striped","hover","condensed")
+  )
+```
+Prevalence varied across participant characteristics. Higher prevalence was observed among participants presenting genital symptoms and among those infected with *Neisseria gonorrhoeae*. Conversely, participants infected with *Gardnerella vaginalis* showed a lower prevalence of *Trichomonas vaginalis* infection.
+
+
+
+
+## **Bivariate Analysis**
+
+Bivariate analysis was conducted to explore the association between participant characteristics and *Trichomonas vaginalis* infection.
+
+The association between categorical variables and infection status was assessed using the Pearson chi-square test or Fisher's exact test when expected cell counts were below five.
+```{r bivariate_association_tests, warning=FALSE}
+
+bivariate_test <- function(var){
+
+  tab <- table(TV_Global_data[[var]], TV_Global_data$TV_Global)
+
+  if(any(tab < 5)){
+    test <- fisher.test(tab)
+    method <- "Fisher exact"
+  } else {
+    test <- chisq.test(tab)
+    method <- "Chi-square"
+  }
+
+  data.frame(
+    Variable = var,
+    Method = method,
+    p_value = round(test$p.value,4)
+  )
+}
+
+vars <- c(
+"age_group","niv_educ","parten","clien_reg","habita","otr_activ_cat","somme_sem","rapsex1_group","sexpayan1_group","anciennete_profession_cat",
+"activ_prin","client_sem_cat","typ_rap",
+"toil_int","freq_toil","type_toil_rec",
+"preso_dern_rap","freq_pres","clien_reg","symp_ist_med","quel_sympt_cat_med",
+"leucorre","aspect_col_cat","ph_cat","statut_VIH","GV","CT","NG"
+)
+
+bivariate_results <- lapply(vars, bivariate_test) %>%
+  bind_rows()
+
+
+bivariate_results %>%
+  kable(
+    caption = "Bivariate analysis of factors associated with Trichomonas vaginalis infection",
+    col.names = c("Variable","Statistical test","p-value"),
+    align = c("l","c","c"),
+    digits = 3
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    bootstrap_options = c("striped","hover","condensed")
+  )
+```
+Among the variables examined, infection with *Gardnerella vaginalis* was significantly associated with *Trichomonas vaginalis* infection (p = 0.023). Other variables did not show statistically significant associations in the bivariate analysis.
+
+
+
+
+# **Identification of Factors Associated with *Trichomonas vaginalis* Infection**
+
+To identify factors associated with Trichomonas vaginalis infection, logistic regression analyses were performed.
+
+
+## **Univariable Logistic Regression Analysis**
+
+First, univariable logistic regression models were fitted for each explanatory variable to estimate crude associations with infection status. Variables with a p-value < 0.20 in univariable analysis, as well as variables considered biologically relevant based on previous literature, were considered for inclusion in the multivariable model.
+
+For each variable, crude odds ratios (OR) and their 95% confidence intervals (95% CI) were estimated.
+```{r univariable_logistic_models, warning=FALSE}
+
+# Variables selected based on chi-square/Fisher tests and biological plausibility
+vars <- c(
+
+  # 1. Sociodemographic factors
+  "age_group",
+  "niv_educ",
+  "parten",
+  "habita",
+
+  # 2. Sexual behaviours and symptoms
+  "rapsex1_group",
+  "sexpayan1_group",
+  "anciennete_profession_cat",
+  "activ_prin",
+  "client_sem_cat",
+  "typ_rap",
+  "toil_int",
+  "freq_toil",
+  "type_toil_rec",
+  "clien_reg",
+  "symp_ist_med",
+
+  # 3. Sexually transmitted infections
+  "statut_VIH",
+  "GV",
+  "CT",
+  "NG"
+)
+
+
+
+univariate_logistic <- function(var){
+
+  formula <- as.formula(paste("TV_Global ~", var))
+
+  model <- glm(
+    formula,
+    data = TV_Global_data,
+    family = binomial
+  )
+
+  results <- summary(model)$coefficients
+
+  OR <- exp(coef(model))
+  CI <- exp(confint(model))
+
+  # Number of observations used in the model
+  n_used <- nobs(model)
+
+  data.frame(
+    Variable = var,
+    Category = rownames(results),
+    N = n_used,
+    OR = round(OR,2),
+    CI_lower = round(CI[,1],2),
+    CI_upper = round(CI[,2],2),
+    p_value = round(results[,4],4)
+  )
+}
+
+
+univariate_results <- lapply(vars, univariate_logistic) %>%
+  bind_rows() %>%
+filter(Category != "(Intercept)")
+
+
+
+univariate_results %>%
+  kable(
+    caption = "Univariable logistic regression analysis of factors associated with Trichomonas vaginalis infection",
+    col.names = c("Variable","Category","N","OR","95% CI lower","95% CI upper","p-value"),
+    align = "lcccccc"
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    bootstrap_options = c("striped","hover","condensed")
+  )
+
+```
+ Several variables showed potential associations with infection and were considered for inclusion in the multivariable model based on statistical significance and biological plausibility.
+
+
+
+# **Multivariable Logistic Regression Analysis**
+
+A multivariable logistic regression model was then constructed to identify factors independently associated with Trichomonas vaginalis infection. Variable selection was performed using a stepwise procedure based on the Akaike Information Criterion (AIC) to obtain the most parsimonious model.
+
+Adjusted odds ratios (AOR) and their 95% confidence intervals (95% CI) were calculated to identify factors independently associated with Trichomonas vaginalis infection.
+```{r multivariable_logistic_model}
+# Dataset complet sans valeurs manquantes pour les variables du modèle
+
+vars_model <- c(
+"TV_Global",
+"age_group",
+"niv_educ",
+"habita",
+"sexpayan1_group",
+"client_sem_cat",
+"activ_prin",
+"freq_toil",
+"symp_ist_med",
+"GV",
+"NG",
+"statut_VIH"
+)
+
+TV_model_data <- TV_Global_data %>%
+dplyr::select(all_of(vars_model)) %>%
+na.omit()
+
+
+## Sample size used in the regression model
+nrow(TV_model_data)
+cat("Sample size used in multivariable analysis:", nrow(TV_model_data))
+
+
+# Multivariable Logistic Regression Model (Initial Full Model)
+
+full_model <- glm(
+TV_Global ~ age_group +
+niv_educ +
+habita +
+sexpayan1_group +
+client_sem_cat +
+activ_prin +
+freq_toil +
+symp_ist_med +
+GV +
+NG +
+statut_VIH,
+data = TV_model_data,
+family = binomial
+)
+
+
+# Variable selection using Stepwise Logistic Regression
+## Stepwise Logistic Regression (based on AIC)
+
+step_model <- stepAIC(
+full_model,
+direction = "both",
+trace = FALSE
+)
+
+
+
+# Extraction of Adjusted Odds Ratios (AOR)
+## Adjusted Odds Ratios and 95% Confidence Intervals
+
+OR <- exp(coef(step_model))
+CI <- exp(confint(step_model))
+
+multiv_results <- data.frame(
+Variable = rownames(summary(step_model)$coefficients),
+AOR = round(OR,2),
+CI_lower = round(CI[,1],2),
+CI_upper = round(CI[,2],2),
+p_value = round(summary(step_model)$coefficients[,4],4)
+)
+
+
+
+# Multivariable Logistic Regression Results Table
+multiv_results %>%
+filter(Variable != "(Intercept)") %>%
+kable(
+caption = "Multivariable logistic regression analysis of factors associated with Trichomonas vaginalis infection",
+col.names = c("Variable","AOR","95% CI lower","95% CI upper","p-value"),
+align = "lcccc"
+) %>%
+kable_styling(
+full_width = FALSE,
+bootstrap_options = c("striped","hover","condensed")
+)
+
+```
+Participants whose first paid sexual intercourse occurred between 15-24 years or at age ≥35 years showed lower odds of Trichomonas vaginalis infection compared with the reference category. Infection with Gardnerella vaginalis was associated with reduced odds of Trichomonas vaginalis infection (AOR = 0.31; 95% CI: 0.12-0.71). In contrast, infection with Neisseria gonorrhoeae showed a positive but not statistically significant association with Trichomonas vaginalis infection.
+
+
+
+
+## **Model adequacy was evaluated using**
+
+- Model adequacy was evaluated using:
+
+- Akaike Information Criterion (AIC)
+
+- Hosmer-Lemeshow goodness-of-fit test
+
+- Variance Inflation Factor (VIF) to assess multicollinearity between variables.
+```{r}
+# Model evaluation (Model diagnostics)
+## AIC of the final model
+AIC(step_model) 
+
+
+# Hosmer-Lemeshow test (Goodness of fit)
+
+hoslem.test(
+as.numeric(TV_model_data$TV_Global) - 1,
+fitted(step_model)
+)
+
+
+# Multicollinearity (VIF)
+
+vif(step_model)
+```
+Model diagnostics indicated an adequate model fit. The Hosmer–Lemeshow goodness-of-fit test did not show evidence of lack of fit (p = 0.931). Variance Inflation Factor (VIF) values were low for all variables, indicating no evidence of multicollinearity.
+
+
+
+
+# **Comparison of Diagnostic Methods for the Detection of Trichomonas vaginalis**
+
+This section evaluates the diagnostic performance of wet mount microscopy compared with PCR for the detection of Trichomonas vaginalis. PCR was considered the reference method.
+
+
+## **Prevalence of *Trichomonas vaginalis* According to Diagnostic Method**
+
+This analysis estimates the prevalence of Trichomonas vaginalis detected by wet mount microscopy and PCR among participants with valid PCR results. Prevalence proportions and their 95% confidence intervals were calculated using exact binomial methods.
+```{r diagnostic_prevalence_methods}
+
+# Filter dataset to keep only valid PCR tests
+tv_diag <- TV_Global_data %>%
+  filter(TV_PCR_status == "Test valide") %>%
+  filter(!is.na(TV_EF), !is.na(TV))
+
+
+# Total sample
+n_total <- nrow(tv_diag)
+
+
+# Prevalence according to each technique
+# EF prevalence
+ef_pos <- sum(tv_diag$TV_EF == "Positif")
+ef_prev <- binom.test(ef_pos, n_total)
+
+# PCR prevalence
+pcr_pos <- sum(tv_diag$TV == "Positif")
+pcr_prev <- binom.test(pcr_pos, n_total)
+
+# Prevalence table
+prev_table <- data.frame(
+  Method = c("Wet mount microscopy (EF)", "PCR"),
+  Positive = c(ef_pos, pcr_pos),
+  Total = c(n_total, n_total),
+  Prevalence = round(c(ef_pos/n_total, pcr_pos/n_total)*100,1),
+  CI_lower = round(c(ef_prev$conf.int[1], pcr_prev$conf.int[1])*100,1),
+  CI_upper = round(c(ef_prev$conf.int[2], pcr_prev$conf.int[2])*100,1)
+)
+
+prev_table %>%
+  kable(
+    caption = "Prevalence of Trichomonas vaginalis according to diagnostic technique",
+    col.names = c("Diagnostic method","Positive","Total","Prevalence (%)","95% CI lower","95% CI upper")
+  ) %>%
+  kable_styling(full_width = FALSE)
+
+```
+Among the 198 participants with valid PCR results, the prevalence of Trichomonas vaginalis infection was 10.6% according to PCR and 8.6% according to wet mount microscopy.
+
+
+
+
+## **Comparison of Detection Proportions Between Diagnostic Methods (McNemar Test)**
+
+The McNemar test was used to compare the detection proportions between wet mount microscopy and PCR. This test is appropriate for paired diagnostic data and evaluates whether the two methods differ significantly in their ability to detect infection.
+```{r mcnemar_diagnostic_comparison}
+
+# Create contingency table
+diag_table <- tv_diag %>%
+  with(table(Test = TV_EF, Outcome = TV)) %>%
+  .[c("Positif","Négatif"), c("Positif","Négatif"), drop = FALSE]
+
+diag_table
+
+
+# McNemar test (comparison of methods)
+mcnemar_test <- mcnemar.test(diag_table)
+mcnemar_test
+
+```
+The McNemar test was used to compare the detection proportions between wet mount microscopy and PCR. No statistically significant difference was observed between the two diagnostic methods (p = 0.571).
+
+
+
+
+## **Agreement Between Wet Mount Microscopy and PCR**
+
+Agreement between the two diagnostic methods was assessed using a contingency table and Cohen’s Kappa coefficient. This analysis quantifies the level of concordance between microscopy and PCR results beyond what would be expected by chance.
+```{r kappa_diagnostic_agreement}
+
+# Display table
+diag_table %>%
+  kable(
+    caption = "Agreement between wet mount microscopy (EF) and PCR for detection of Trichomonas vaginalis",
+    row.names = TRUE
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    bootstrap_options = c("striped","hover","condensed")
+  )
+
+
+# Kappa agreement
+kappa_result <- irr::kappa2(tv_diag[,c("TV_EF","TV")])
+kappa_result
+
+```
+Agreement between wet mount microscopy and PCR was assessed using Cohen’s Kappa coefficient. The Kappa value was 0.186 (p = 0.008), indicating a low level of agreement between the two diagnostic methods.
+
+
+
+## **Diagnostic Performance of Wet Mount Microscopy**
+
+Using PCR as the reference method, the diagnostic performance of wet mount microscopy was evaluated by estimating sensitivity, specificity, positive predictive value (PPV), negative predictive value (NPV), and likelihood ratios. These indicators provide a comprehensive assessment of the ability of microscopy to correctly identify infected and non-infected individuals.
+```{r diagnostic_performance_metrics}
+
+# Diagnostic Performance
+# Diagnostic performance statistics
+diag_perf <- epi.tests(diag_table)
+print(diag_perf)
+
+```
+Using PCR as the reference method, wet mount microscopy showed low sensitivity (24%) but high specificity (93%). The positive predictive value was 29%, and the negative predictive value was 91%. These findings indicate that wet mount microscopy has limited ability to detect true infections but performs well in identifying non-infected individuals.
+
+
+
+
+# **Conclusion**
+
+This study provides updated epidemiological evidence on the burden of Trichomonas vaginalis infection among female sex workers in Lomé.
+
+The results highlight moderate prevalence and suggest potential interactions with other sexually transmitted infections.
+
+Wet mount microscopy showed limited sensitivity compared with PCR, supporting the need for improved diagnostic approaches in STI surveillance programs.
