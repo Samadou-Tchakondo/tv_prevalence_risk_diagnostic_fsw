@@ -91,9 +91,28 @@ This allows full transparency of the statistical methods and analytical procedur
 
 ---
 
+
+## Author
+
+Samadou Tchakondo  
+Biostatistics and Epidemiology  
+SRM Institute of Science and Technology, Chennai, India  
+
+ORCID: https://orcid.org/0009-0006-6747-3170
+
+Role in this project:
+
+- Statistical analysis  
+- Reproducible RMarkdown workflow  
+- Data visualization  
+- Epidemiological modelling
+
+
 ## Reproducibility
 
 To render the analysis report locally:
 
 ```r
 rmarkdown::render("tv_analysis_fsw_lome.Rmd")
+
+
