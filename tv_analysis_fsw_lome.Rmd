@@ -60,7 +60,7 @@ library(gtsummary)   # Creation of publication-ready descriptive and regression 
 
 library(epiR)        # Epidemiological analysis tools, including diagnostic performance statistics (epi.tests)
 
-library(psych)      # Statistical procedures including agreement statistics (e.g., internal consistency (alpha), Cohen's Kappa)
+library(psych)      # Statistical procedures including agreement statistics (e.g., internal consistency (alpha, Cohen's Kappa)
 
 library(broom)      # Convert statistical model outputs into tidy data frames
 
@@ -149,6 +149,12 @@ selected_data <- data %>%
     # Clinical symptoms
     symp_ist_med,
     quel_sympt_cat_med,
+     perte_vag,
+    ulc_gen,
+    dlr_abdo,
+    demg_vag,
+    dlr_urin,
+   quel_sympt_cat,
 
     # Physical signs
     aspect_col_cat,
@@ -312,7 +318,28 @@ TV_Global_data <- selected_data %>%
                                            "Dysurie",
                                            "Mixte*")),
 
-      
+          `Pertes vaginales` = factor(perte_vag,
+                               levels = c(0,1),
+                               labels = c("Non","Oui")),
+    
+    `Ulcération génitale` = factor(ulc_gen,
+                                  levels = c(0,1),
+                                  labels = c("Non","Oui")),
+    
+    `Douleur abdominale` = factor(dlr_abdo,
+                                 levels = c(0,1),
+                                 labels = c("Non","Oui")),
+    
+    `Démangeaisons vaginales` = factor(demg_vag,
+                                      levels = c(0,1),
+                                      labels = c("Non","Oui")),
+    
+    `Douleur urinaire` = factor(dlr_urin,
+                               levels = c(0,1),
+                               labels = c("Non","Oui")),
+    
+    quel_sympt_cat = factor(quel_sympt_cat),
+    
     leucorre = factor(leucorre,
                             levels = c(1,2,3,4),
                             labels = c("Crémeux",
@@ -448,6 +475,21 @@ fig1 <- TV_Global_data %>%
   
   theme_classic(base_size = 13)
 
+
+
+# Save figure
+ggplot2::ggsave(
+  filename = here::here(
+    "output",
+    "Figure 1. Distribution of sexual practices reported among participants.png"
+  ),
+  plot = fig1,
+  width = 10,
+  height = 6,
+  dpi = 600,
+  units = "in",
+  bg = "white")
+
 fig1
 ```
 Vaginal intercourse was the most commonly reported sexual practice (63.8%). Combined sexual practices including vaginal and anal intercourse were reported by 18.0% of participants.
@@ -468,7 +510,7 @@ fig2 <- TV_Global_data %>%
   ggplot(aes(x = prop,
              y = fct_reorder(quel_sympt_cat_med, prop))) +
   
-  geom_col(fill = "skyblue", width = 0.65) +
+  geom_col(fill = "#1f9ac6", width = 0.65) +
   
   geom_text(aes(label = round(prop,1)),
             hjust = -0.2,
@@ -486,6 +528,21 @@ fig2 <- TV_Global_data %>%
   
   theme_classic(base_size = 13)
 
+
+# Save figure
+ggplot2::ggsave(
+  filename = here::here(
+    "output",
+    "Figure 2. Distribution of sexually transmitted infection (STI) symptoms reported among symptomatic participants.png"
+  ),
+  plot = fig2,
+  width = 10,
+  height = 6,
+  dpi = 600,
+  units = "in",
+  bg = "white")
+
+
 fig2
 
 ```
@@ -493,12 +550,127 @@ Among the 119 participants reporting STI symptoms, leucorrhea was the most frequ
 
 
 
+## **Distribution of Reported STI Symptoms from binary variables**
+```{r figure_sti_symptoms_binary, fig.cap= "Figure 3. Distribution of reported sexually transmitted infection (STI) symptoms based on binary symptom variables", fig.width= 7, fig.height=5}
+
+symptomes_plot <- TV_Global_data %>%
+  dplyr::select(
+    `Pertes vaginales`,
+    `Ulcération génitale`,
+    `Démangeaisons vaginales`,
+    `Douleur urinaire`,
+    `Douleur abdominale`
+  )
+
+
+symptomes_summary <- symptomes_plot %>%
+  summarise(across(everything(),
+                   ~ mean(. == "Oui", na.rm = TRUE))) %>%
+  pivot_longer(cols = everything(),
+               names_to = "Symptôme",
+               values_to = "Proportion") %>%
+  mutate(Proportion = Proportion * 100) %>%
+  arrange(desc(Proportion)) %>%   # decreasing sorting
+  mutate(Symptôme = forcats::fct_reorder(Symptôme, Proportion))  # clear order
+
+# Graph
+fig3 <- ggplot(symptomes_summary,
+                     aes(x = Proportion,
+                         y = Symptôme)) +
+  
+  geom_col(fill = "#1f9ac6", width = 0.65) +
+  
+  geom_text(aes(label = round(Proportion, 1)),
+            hjust = -0.2,
+            size = 4) +
+  
+  scale_x_continuous(
+    limits = c(0, 80),
+    expand = c(0, 0)  # remove unnecessary space
+  ) +
+  
+  labs(
+    x = "Proportion (%)",
+    y = NULL
+  ) +
+  
+  theme_classic(base_size = 13) 
+
+fig3
+
+# Save figure
+ggplot2::ggsave(
+  filename = here::here(
+    "output",
+    "Figure 3. Distribution of reported sexually transmitted infection (STI) symptoms based on binary symptom variables.png"
+  ),
+  plot = fig3,
+  width = 10,
+  height = 6,
+  dpi = 600,
+  units = "in",
+  bg = "white")
+
+```
+
+
+
+## **Distribution of Reported STI Symptoms for all modalities**
+```{r figure_sti_symptoms_all_modalities, fig.cap = "Figure 4. Distribution of all reported sexually transmitted infection (STI) symptom modalities", fig.width = 7, fig.height = 5}
+
+summary_sympt <- TV_Global_data %>%
+  filter(quel_sympt_cat != "Valid") %>%   
+  count(quel_sympt_cat) %>%
+  mutate(prop = 100 * n / sum(n))
+
+
+fig4 <- summary_sympt %>%
+  ggplot(aes(x = prop,
+             y = forcats::fct_reorder(quel_sympt_cat, prop))) +
+  
+  geom_col(fill = "#1f9ac6", width = 0.6) +
+  
+  geom_text(aes(label = round(prop, 1)),
+            hjust = -0.2,
+            size = 3) +
+  
+  scale_x_continuous(
+    limits = c(0, 50),
+    expand = c(0, 0)  # remove unnecessary space
+  ) +
+  
+  labs(
+    x = "Proportion (%)",
+    y = NULL
+  ) +
+  
+  theme_classic(base_size = 12) 
+  
+ 
+# Save figure
+ggplot2::ggsave(
+  filename = here::here(
+    "output",
+    "Figure 4. Distribution of all reported sexually transmitted infection (STI) symptom modalities.png"
+  ),
+  plot = fig3,
+  width = 10,
+  height = 6,
+  dpi = 600,
+  units = "in",
+  bg = "white")
+
+
+fig4
+```
+
+
 ## **Prevalence of Major Sexually Transmitted Infections**
-```{r figure_sti_prevalence, fig.cap= "Figure 3. Prevalence of major sexually transmitted infections among study participants",fig.width=7,fig.height=5}
+```{r figure_sti_prevalence, fig.cap= "Figure 5. Prevalence of major sexually transmitted infections among study participants",fig.width=7,fig.height=5}
 
 plot_ist <- TV_Global_data %>%
   summarise(
-    VIH = mean(statut_VIH == "Positif", na.rm = TRUE)*100,
+    HIV = mean(statut_VIH == "Positif", na.rm = TRUE)*100,
     `Gardnerella vaginalis` = mean(GV == "Positif", na.rm = TRUE)*100,
     `Chlamydia trachomatis` = mean(CT == "Positif", na.rm = TRUE)*100,
     `Neisseria gonorrhoeae` = mean(NG == "Positif", na.rm = TRUE)*100
@@ -507,7 +679,7 @@ plot_ist <- TV_Global_data %>%
                       names_to = "infection",
                       values_to = "prop")
 
-fig3 <- ggplot(plot_ist,
+fig5 <- ggplot(plot_ist,
        aes(x = prop,
            y = fct_reorder(infection, prop))) +
 
@@ -529,15 +701,21 @@ fig3 <- ggplot(plot_ist,
 
   theme_classic(base_size = 16)
 
-fig3
 
-ggsave(
-  filename = "output/Figure3_STI_prevalence.png",
-  plot = fig3,
-  width = 8,
-  height = 5,
-  dpi = 600
-)
+# Save figure
+ggplot2::ggsave(
+  filename = here::here(
+    "output",
+    "Figure 5. Prevalence of major sexually transmitted infections among study participants.png"
+  ),
+  plot = fig5,
+  width = 10,
+  height = 6,
+  dpi = 600,
+  units = "in",
+  bg = "white")
+
+fig5
 ```
  HIV infection was observed in 15.8% of participants. Gardnerella vaginalis infection was detected in 35.3% of participants, while Chlamydia trachomatis and Neisseria gonorrhoeae infections were identified in 8.5% and 8.7% of participants, respectively.
 
@@ -592,10 +770,10 @@ Description of overall prevalence of infection among participants.
 ```{r tv_prevalence_estimation}
 # Remove missing values
 tv_data <- TV_Global_data %>%
-  filter(!is.na(TV_Global))
+  filter(!is.na(TV_EF))
 
 # Counts
-n_pos <- sum(tv_data$TV_Global == "Positif")
+n_pos <- sum(tv_data$TV_EF == "Positif")
 n_total <- nrow(tv_data)
 
 # CI
@@ -617,9 +795,8 @@ prevalence_table %>%
   ) %>%
   kable_styling(full_width = FALSE)
 
-
 ```
-The overall prevalence of *Trichomonas vaginalis* infection among female sex workers was 14.0% (95% CI: 10.7-18.1).
+The overall prevalence of *Trichomonas vaginalis* infection among female sex workers was 9.5% (95% CI: 6.8-13.2).
 
 
 
@@ -646,9 +823,9 @@ analysis_vars <- c(
 prevalence_by_var <- lapply(analysis_vars, function(v){
 
   df <- TV_Global_data %>%
-    filter(!is.na(.data[[v]]), !is.na(TV_Global))
+    filter(!is.na(.data[[v]]), !is.na(TV_EF))
 
-  tab <- table(df[[v]], df$TV_Global)
+  tab <- table(df[[v]], df$TV_EF)
 
   res <- lapply(rownames(tab), function(cat){
 
@@ -699,7 +876,7 @@ The association between categorical variables and infection status was assessed 
 
 bivariate_test <- function(var){
 
-  tab <- table(TV_Global_data[[var]], TV_Global_data$TV_Global)
+  tab <- table(TV_Global_data[[var]], TV_Global_data$TV_EF)
 
   if(any(tab < 5)){
     test <- fisher.test(tab)
@@ -740,7 +917,7 @@ bivariate_results %>%
     bootstrap_options = c("striped","hover","condensed")
   )
 ```
-Among the variables examined, infection with *Gardnerella vaginalis* was significantly associated with *Trichomonas vaginalis* infection (p = 0.023). Other variables did not show statistically significant associations in the bivariate analysis.
+Among the variables examined, infection with *Gardnerella vaginalis* was significantly associated with *Trichomonas vaginalis* infection (p < 0.001). Other variables did not show statistically significant associations in the bivariate analysis.
 
 
 
@@ -790,7 +967,7 @@ vars <- c(
 
 univariate_logistic <- function(var){
 
-  formula <- as.formula(paste("TV_Global ~", var))
+  formula <- as.formula(paste("TV_EF ~", var))
 
   model <- glm(
     formula,
@@ -845,11 +1022,11 @@ univariate_results %>%
 A multivariable logistic regression model was then constructed to identify factors independently associated with Trichomonas vaginalis infection. Variable selection was performed using a stepwise procedure based on the Akaike Information Criterion (AIC) to obtain the most parsimonious model.
 
 Adjusted odds ratios (AOR) and their 95% confidence intervals (95% CI) were calculated to identify factors independently associated with Trichomonas vaginalis infection.
-```{r multivariable_logistic_model}
+```{r multivariable_logistic_model, warning=FALSE}
 # Dataset complet sans valeurs manquantes pour les variables du modèle
 
 vars_model <- c(
-"TV_Global",
+"TV_EF",
 "age_group",
 "niv_educ",
 "habita",
@@ -865,7 +1042,7 @@ vars_model <- c(
 
 TV_model_data <- TV_Global_data %>%
 dplyr::select(all_of(vars_model)) %>%
-na.omit()
+na.omit() 
 
 
 ## Sample size used in the regression model
@@ -876,7 +1053,7 @@ cat("Sample size used in multivariable analysis:", nrow(TV_model_data))
 # Multivariable Logistic Regression Model (Initial Full Model)
 
 full_model <- glm(
-TV_Global ~ age_group +
+TV_EF ~ age_group +
 niv_educ +
 habita +
 sexpayan1_group +
@@ -954,15 +1131,13 @@ AIC(step_model)
 
 
 # Hosmer-Lemeshow test (Goodness of fit)
-
 hoslem.test(
-as.numeric(TV_model_data$TV_Global) - 1,
+as.numeric(TV_model_data$TV_EF) - 1,
 fitted(step_model)
 )
 
 
 # Multicollinearity (VIF)
-
 vif(step_model)
 ```
 Model diagnostics indicated an adequate model fit. The Hosmer–Lemeshow goodness-of-fit test did not show evidence of lack of fit (p = 0.931). Variance Inflation Factor (VIF) values were low for all variables, indicating no evidence of multicollinearity.
@@ -1083,6 +1258,92 @@ print(diag_perf)
 
 ```
 Using PCR as the reference method, wet mount microscopy showed low sensitivity (24%) but high specificity (93%). The positive predictive value was 29%, and the negative predictive value was 91%. These findings indicate that wet mount microscopy has limited ability to detect true infections but performs well in identifying non-infected individuals.
+
+
+
+## **Distribution de la prévalence de Trichomonas vaginalis selon le statut symptomatique et les méthodes diagnostiques**
+```{r}
+## Fonction
+calc_n_pct <- function(data, var){
+  n <- sum(data[[var]] == "Positif", na.rm = TRUE)
+  N <- sum(!is.na(data[[var]]))
+  pct <- round(100*n/N,1)
+  paste0(n, "/", N, " (", pct, ")")
+}
+
+# Fonction pour format p-value
+format_p <- function(p){
+  if(is.na(p)) return("")
+  if(p < 0.001) return("<0.001")
+  return(sprintf("%.3f", p))
+}
+
+
+## Sous-population
+tv_diag <- TV_Global_data %>%
+  dplyr::filter(TV_PCR_status == "Test valide") %>%
+  dplyr::filter(!is.na(TV_EF), !is.na(TV))
+
+
+## TABLE PAR SYMPTÔMES
+# EF total
+EF_total <- TV_Global_data %>%
+  dplyr::group_by(symp_ist_med) %>%
+  dplyr::summarise(EF_total = calc_n_pct(dplyr::cur_data(), "TV_EF"), .groups="drop")
+
+# EF sous-pop
+EF_diag <- tv_diag %>%
+  dplyr::group_by(symp_ist_med) %>%
+  dplyr::summarise(EF_diag = calc_n_pct(dplyr::cur_data(), "TV_EF"), .groups="drop")
+
+# PCR
+PCR_diag <- tv_diag %>%
+  dplyr::group_by(symp_ist_med) %>%
+  dplyr::summarise(PCR = calc_n_pct(dplyr::cur_data(), "TV"), .groups="drop")
+
+# GLOBAL 
+GLOBAL_diag <- tv_diag %>%
+  dplyr::group_by(symp_ist_med) %>%
+  dplyr::summarise(GLOBAL = calc_n_pct(dplyr::cur_data(), "TV_Global"), .groups="drop")
+
+
+## FUSION
+table_final <- EF_total %>%
+  dplyr::left_join(EF_diag, by="symp_ist_med") %>%
+  dplyr::left_join(PCR_diag, by="symp_ist_med") %>%
+  dplyr::left_join(GLOBAL_diag, by="symp_ist_med")
+
+
+## p-values
+p_EF_total <- chisq.test(table(TV_Global_data$symp_ist_med, TV_Global_data$TV_EF))$p.value
+p_EF_diag  <- chisq.test(table(tv_diag$symp_ist_med, tv_diag$TV_EF))$p.value
+p_PCR      <- chisq.test(table(tv_diag$symp_ist_med, tv_diag$TV))$p.value
+p_GLOBAL   <- chisq.test(table(tv_diag$symp_ist_med, tv_diag$TV_Global))$p.value
+
+
+## LIGNE p + TOTAL
+p_row <- data.frame(
+  symp_ist_med = "p*",
+  EF_total = format_p(p_EF_total),
+  EF_diag  = format_p(p_EF_diag),
+  PCR      = format_p(p_PCR),
+  GLOBAL   = format_p(p_GLOBAL),
+  stringsAsFactors = FALSE
+)
+
+total_row <- data.frame(
+  symp_ist_med = "Total",
+  EF_total = calc_n_pct(TV_Global_data, "TV_EF"),
+  EF_diag  = calc_n_pct(tv_diag, "TV_EF"),
+  PCR      = calc_n_pct(tv_diag, "TV"),
+  GLOBAL   = calc_n_pct(tv_diag, "TV_Global"),
+  stringsAsFactors = FALSE
+)
+
+final_table <- dplyr::bind_rows(table_final, p_row, total_row)
+
+final_table
+```
 
 
 
